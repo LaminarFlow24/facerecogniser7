@@ -36,6 +36,7 @@ def load_model():
         st.error(f"Error loading model: {e}")
         raise
 
+# Load model and preprocessing
 face_recogniser = load_model()
 preprocess = preprocessing.ExifOrientationNormalize()
 
@@ -45,6 +46,7 @@ st.title("Live Face Recognition")
 if 'seen_labels' not in st.session_state:
     st.session_state.seen_labels = set()
 
+# Function to process and annotate image
 def process_image(pil_img):
     pil_img = preprocess(pil_img)
     pil_img = pil_img.convert('RGB')
@@ -81,8 +83,19 @@ def process_image(pil_img):
 
     return pil_img, unique_faces
 
-image_data = st.camera_input("Take a photo for face recognition")
+# Input method: Camera or Upload
+input_method = st.radio("Choose Input Method", ["Camera", "Upload Image"])
 
+image_data = None
+
+if input_method == "Camera":
+    image_data = st.camera_input("Take a photo for face recognition")
+elif input_method == "Upload Image":
+    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+    if uploaded_file:
+        image_data = uploaded_file
+
+# Face recognition logic
 if image_data:
     pil_image = Image.open(image_data)
     annotated_image, output_details = process_image(pil_image)
@@ -93,6 +106,7 @@ if image_data:
     for detail in output_details:
         st.write(f"Label: {detail['label']}, Confidence: {detail['confidence']:.2f}")
     print(output_details)
+
     if output_details:
         # Send data to Node.js server
         response = requests.post(NODE_SERVER_URL, json={"faces": output_details})
@@ -104,6 +118,7 @@ if image_data:
     else:
         st.warning("No valid face data to store.")
 
+# Data Retrieval Section
 st.title("Retrieve Face Recognition Data")
 
 date = st.date_input("Select Date")
@@ -121,12 +136,10 @@ if st.button("Get Data"):
 
     if response.status_code == 200:
         data = response.json()
-        st.write("Total Count: ",len(data))
+        st.write("Total Count: ", len(data))
         st.write("Retrieved Data:")
-
         for d in data:
             timestamp = datetime.fromisoformat(d['timestamp']).strftime("%H:%M:%S")
-            st.write(f"{d['label']}     {timestamp}") 
-
+            st.write(f"{d['label']}     {timestamp}")
     else:
         st.error("Failed to fetch data.")
